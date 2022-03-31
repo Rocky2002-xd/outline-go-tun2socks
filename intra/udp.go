@@ -21,13 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+
 	"sync"
 	"time"
 
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
 	"github.com/eycorsican/go-tun2socks/common/log"
 	"github.com/eycorsican/go-tun2socks/core"
-
-	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
 )
 
 // UDPSocketSummary describes a non-DNS UDP association, reported when it is discarded.
@@ -131,7 +131,10 @@ func (h *udpHandler) Connect(conn core.UDPConn, target *net.UDPAddr) error {
 func (h *udpHandler) doDoh(dns doh.Transport, t *tracker, conn core.UDPConn, data []byte) {
 	resp, err := dns.Query(data)
 	if resp != nil {
+
 		_, err = conn.WriteFrom(resp, &h.fakedns)
+		//_, err = conn.WriteFrom(s, &h.fakedns)
+
 	}
 	if err != nil {
 		log.Warnf("DoH query failed: %v", err)

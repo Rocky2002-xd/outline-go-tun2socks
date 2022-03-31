@@ -129,6 +129,15 @@ func (h *tcpHandler) Handle(conn net.Conn, target *net.TCPAddr) error {
 		go doh.Accept(dns, conn)
 		return nil
 	}
+	unip := net.ParseIP(doh.Nmap[target.IP.String()])
+
+	//fmt.Println(doh.Nmap)
+	//fmt.Println(doh.Nmap[target.IP.String()], target.IP.String())
+
+	target = &net.TCPAddr{
+		IP:   unip,
+		Port: target.Port,
+	}
 	var summary TCPSocketSummary
 	summary.ServerPort = filteredPort(target)
 	start := time.Now()

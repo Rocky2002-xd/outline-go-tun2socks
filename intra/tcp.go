@@ -17,6 +17,7 @@
 package intra
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -123,13 +124,24 @@ func filteredPort(addr net.Addr) int16 {
 
 // TODO: Request upstream to make `conn` a `core.TCPConn` so we can avoid a type assertion.
 func (h *tcpHandler) Handle(conn net.Conn, target *net.TCPAddr) error {
+	var unip net.IP
 	// DNS override
 	if target.IP.Equal(h.fakedns.IP) && target.Port == h.fakedns.Port {
 		dns := h.dns.Load()
 		go doh.Accept(dns, conn)
 		return nil
 	}
-	unip := net.ParseIP(doh.Nmap[target.IP.String()])
+	if ipt, found := doh.Nmap[target.IP.String()]; found {
+		if ipt.TTL.Sub(time.Now()) >= 0 {
+			unip = *ipt.RIp
+		} else {
+			log.Warnf("alg entry expired, dropping conn ____")
+			return fmt.Errorf("no network connection")
+		}
+	} else {
+		log.Warnf("could not unmangle, dropping conn ____")
+		return fmt.Errorf("no network connection")
+	}
 
 	//fmt.Println(doh.Nmap)
 	//fmt.Println(doh.Nmap[target.IP.String()], target.IP.String())

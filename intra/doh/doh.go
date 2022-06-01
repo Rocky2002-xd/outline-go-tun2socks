@@ -42,11 +42,17 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+type IpTrans struct {
+	ManIp *net.IP
+	RIp   *net.IP
+	TTL   time.Time
+}
+
 var domain_name string
 var x = "100.a.x.y"
-var Nmap = make(map[string]string)
-var Dmap = make(map[string]string)
-var m = make(map[string]*iptrans)
+var Nmap = make(map[string]*IpTrans)
+var Dmap = make(map[string]*IpTrans)
+var m = make(map[string]*IpTrans)
 
 const (
 	// Complete : Transaction completed successfully
@@ -110,12 +116,6 @@ type transport struct {
 	listener           Listener
 	hangoverLock       sync.RWMutex
 	hangoverExpiration time.Time
-}
-
-type iptrans struct {
-	manip *net.IP
-	rip   *net.IP
-	ttl   time.Time
 }
 
 // Wait up to three seconds for the TCP handshake to complete.
@@ -467,7 +467,7 @@ func random() (string, string, string) {
 	return rand_stringa, rand_stringx, rand_stringy
 }
 
-func mangling(ip string) string {
+func mangling(ipin *net.IP, rra *dns.RR_Header) (ipt *IpTrans) {
 	r1, r2, r3 := random()
 	r := r1 + "." + r2 + "." + r3
 
@@ -475,13 +475,20 @@ func mangling(ip string) string {
 	// 10.111.222.4 - 10.111.222.254
 	// x := [255]string{"10.1.1.1", "10.2.2.2", "10.3.3.3", "10.4.4.4", "10.5.5.5", "10.6.6.6", "10.7.7.7", "10.8.8.8", "10.9.9.9", "10.10.10.10", "10.11.11.11", "10.12.12.12", "10.13.13.13", "10.14.14.14", "10.15.15.15", "10.16.16.16", "10.17.17.17", "10.18.18.18", "10.19.19.19", "10.20.20.20", "10.21.21.21", "10.22.22.22", "10.23.23.23", "10.24.24.24", "10.25.25.25", "10.26.26.26", "10.27.27.27", "10.28.28.28", "10.29.29.29", "10.30.30.30", "10.31.31.31", "10.32.32.32", "10.33.33.33", "10.34.34.34", "10.35.35.35", "10.36.36.36", "10.37.37.37", "10.38.38.38", "10.39.39.39", "10.40.40.40", "10.41.41.41", "10.42.42.42", "10.43.43.43", "10.44.44.44", "10.45.45.45", "10.46.46.46", "10.47.47.47", "10.48.48.48", "10.49.49.49", "10.50.50.50", "10.51.51.51", "10.52.52.52", "10.53.53.53", "10.54.54.54", "10.55.55.55", "10.56.56.56", "10.57.57.57", "10.58.58.58", "10.59.59.59", "10.60.60.60", "10.61.61.61", "10.62.62.62", "10.63.63.63", "10.64.64.64", "10.65.65.65", "10.66.66.66", "10.67.67.67", "10.68.68.68", "10.69.69.69", "10.70.70.70", "10.71.71.71", "10.72.72.72", "10.73.73.73", "10.74.74.74", "10.75.75.75", "10.76.76.76", "10.77.77.77", "10.78.78.78", "10.79.79.79", "10.80.80.80", "10.81.81.81", "10.82.82.82", "10.83.83.83", "10.84.84.84", "10.85.85.85", "10.86.86.86", "10.87.87.87", "10.88.88.88", "10.89.89.89", "10.90.90.90", "10.91.91.91", "10.92.92.92", "10.93.93.93", "10.94.94.94", "10.95.95.95", "10.96.96.96", "10.97.97.97", "10.98.98.98", "10.99.99.99", "10.100.100.100", "10.101.101.101", "10.102.102.102", "10.103.103.103", "10.104.104.104", "10.105.105.105", "10.106.106.106", "10.107.107.107", "10.108.108.108", "10.109.109.109", "10.110.110.110", "10.111.111.111", "10.112.112.112", "10.113.113.113", "10.114.114.114", "10.115.115.115", "10.116.116.116", "10.117.117.117", "10.118.118.118", "10.119.119.119", "10.120.120.120", "10.121.121.121", "10.122.122.122", "10.123.123.123", "10.124.124.124", "10.125.125.125", "10.126.126.126", "10.127.127.127", "10.128.128.128", "10.129.129.129", "10.130.130.130", "10.131.131.131", "10.132.132.132", "10.133.133.133", "10.134.134.134", "10.135.135.135", "10.136.136.136", "10.137.137.137", "10.138.138.138", "10.139.139.139", "10.140.140.140", "10.141.141.141", "10.142.142.142", "10.143.143.143", "10.144.144.144", "10.145.145.145", "10.146.146.146", "10.147.147.147", "10.148.148.148", "10.149.149.149", "10.150.150.150", "10.151.151.151", "10.152.152.152", "10.153.153.153", "10.154.154.154", "10.155.155.155", "10.156.156.156", "10.157.157.157", "10.158.158.158", "10.159.159.159", "10.160.160.160", "10.161.161.161", "10.162.162.162", "10.163.163.163", "10.164.164.164", "10.165.165.165", "10.166.166.166", "10.167.167.167", "10.168.168.168", "10.169.169.169", "10.170.170.170", "10.171.171.171", "10.172.172.172", "10.173.173.173", "10.174.174.174", "10.175.175.175", "10.176.176.176", "10.177.177.177", "10.178.178.178", "10.179.179.179", "10.180.180.180", "10.181.181.181", "10.182.182.182", "10.183.183.183", "10.184.184.184", "10.185.185.185", "10.186.186.186", "10.187.187.187", "10.188.188.188", "10.189.189.189", "10.190.190.190", "10.191.191.191", "10.192.192.192", "10.193.193.193", "10.194.194.194", "10.195.195.195", "10.196.196.196", "10.197.197.197", "10.198.198.198", "10.199.199.199", "10.200.200.200", "10.201.201.201", "10.202.202.202", "10.203.203.203", "10.204.204.204", "10.205.205.205", "10.206.206.206", "10.207.207.207", "10.208.208.208", "10.209.209.209", "10.210.210.210", "10.211.211.211", "10.212.212.212", "10.213.213.213", "10.214.214.214", "10.215.215.215", "10.216.216.216", "10.217.217.217", "10.218.218.218", "10.219.219.219", "10.220.220.220", "10.221.221.221", "10.222.222.222", "10.223.223.223", "10.224.224.224", "10.225.225.225", "10.226.226.226", "10.227.227.227", "10.228.228.228", "10.229.229.229", "10.230.230.230", "10.231.231.231", "10.232.232.232", "10.233.233.233", "10.234.234.234", "10.235.235.235", "10.236.236.236", "10.237.237.237", "10.238.238.238", "10.239.239.239", "10.240.240.240", "10.241.241.241", "10.242.242.242", "10.243.243.243", "10.244.244.244", "10.245.245.245", "10.246.246.246", "10.247.247.247", "10.248.248.248", "10.249.249.249", "10.250.250.250", "10.251.251.251", "10.252.252.252", "10.253.253.253", "10.254.254.254", "10.255.255.255"}
 
+	// TODO: base recursive case
 	if _, found := Nmap[fip]; found {
-		mangling(ip)
+		return mangling(ipin, rra)
 	}
-	Nmap[fip] = ip
-	return fip
+
+	fip1 := net.ParseIP(fip)
+
+	return &IpTrans{
+		ManIp: &fip1,
+		RIp:   ipin,
+		TTL:   time.Now().Add(time.Second * time.Duration(rra.Header().Ttl)),
+	}
 }
-func packUnpack(mip string, buf []byte, i *dns.Msg) []byte {
+func packUnpack(mip *net.IP, buf []byte, i *dns.Msg) []byte {
 	m := new(dns.Msg)
 	// m.Extra = make([]dns.RR, 1)
 	m.Answer = make([]dns.RR, 1)
@@ -489,7 +496,7 @@ func packUnpack(mip string, buf []byte, i *dns.Msg) []byte {
 	rr := new(dns.A)
 	rr.Hdr = dns.RR_Header{Name: dom, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}
 	//rr.A = net.IPv4(127, 0, 0, 1)
-	rr.A = net.ParseIP(mip)
+	rr.A = *mip
 	fmt.Println(mip, "Mangled ip in Answer section: ", rr.A)
 
 	x := new(dns.TXT)
@@ -509,7 +516,6 @@ func packUnpack(mip string, buf []byte, i *dns.Msg) []byte {
 	o := TestUnpack(s)
 	fmt.Printf("in %s out %s", i.String(), o.String())
 	return (s)
-
 }
 func (t *transport) Query(q []byte) ([]byte, error) {
 	var token Token
@@ -521,55 +527,48 @@ func (t *transport) Query(q []byte) ([]byte, error) {
 	response, server, qerr := t.doQuery(q)
 	after := time.Now()
 
-	var mip string
-	var tmp string
-	var ttl uint32
-	var s []byte
 	in := TestUnpack(response)
-	for _, a := range in.Answer {
-		if rra, ok := a.(*dns.A); ok {
-			mip = mangling(rra.A.String())
-			tmp = rra.A.String()
-			ttl = rra.Header().Ttl
-			break
-		}
-	}
-	mip1 := net.ParseIP(mip)
-	rip1 := net.ParseIP(tmp)
-	ansttl := time.Second * time.Duration(ttl)
-
-	//m := setmultimap.New()
-	//m.Put(1,"x")
-	// if _, found := Dmap[in.Question[0].Name]; found {
-	// 	mip = Dmap[in.Question[0].Name]
-	// } else {
-	// 	Dmap[in.Question[0].Name] = mip
-	// }
-
-	t1 := &iptrans{
-		manip: &mip1,
-		rip:   &rip1,
-		ttl:   time.Now().Add(ansttl),
-	}
-	if _, found := m[in.Question[0].Name]; found {
-		if time.Now().Sub(m[in.Question[0].Name].ttl) > 0 {
-			mip = m[in.Question[0].Name].manip.String()
-		} else {
-			mip = m[in.Question[0].Name].manip.String()
-			m[in.Question[0].Name].ttl = time.Now().Add(ansttl)
-		}
+	qname := in.Question[0].Name
+	var ipt *IpTrans
+	var s []byte
+	var err error
+	if alg, found := m[qname]; found {
+		// time up, update remote ip in alg/nat
+		if alg.TTL.Sub(time.Now()) < 0 {
+			// TODO: multiple Remote IPs unhandled
+			// for _, a := range in.Answer {
+			// 	if rra, ok := a.(*dns.A); ok {
+			// 		ttl := rra.Header().Ttl
+			// 		alg.RIp = &rra.A
+			// 		alg.TTL = time.Now().Add(time.Second * time.Duration(ttl))
+			// 		break
+			// 	}
+			// }
+		} // else: use the current remote ip from alg/nat
+		s = packUnpack(alg.ManIp, q, in)
 	} else {
-		m[in.Question[0].Name] = t1
-	}
-	if len(mip) <= 0 {
-		s = response
-	} else {
-		s = packUnpack(mip, q, in)
+		// no alg/nat mapping found, create a new one
+		for _, a := range in.Answer {
+			if rra, ok := a.(*dns.A); ok {
+				if rra.A == nil {
+					log.Errorf("skip mangle, dns answer nil")
+					continue
+				}
+				ipt = mangling(&rra.A, rra.Header())
+				break
+			}
+		}
+		snat := ipt.ManIp.String()
+		Nmap[snat] = ipt
+		m[qname] = ipt
+		Dmap[ipt.RIp.String()] = ipt
+
+		s = packUnpack(ipt.ManIp, q, in)
 	}
 	out := TestUnpack(s)
+
 	log.Infof("mangled, in/out %s %s", in.String(), out.String())
 
-	var err error
 	status := Complete
 	httpStatus := http.StatusOK
 	if qerr != nil {
@@ -600,6 +599,10 @@ func (t *transport) Query(q []byte) ([]byte, error) {
 		})
 	}
 	return s, err
+}
+
+func Error() {
+	panic("unimplemented")
 }
 
 func (t *transport) GetURL() string {
@@ -684,7 +687,7 @@ func Servfail(q []byte) ([]byte, error) {
 	msg.Response = true
 	msg.RecursionAvailable = true
 	msg.RCode = dnsmessage.RCodeServerFailure
-	msg.Additionals = nil // Strip EDNS
+	msg.Additionals = nil // StRIp EDNS
 	return msg.Pack()
 }
 

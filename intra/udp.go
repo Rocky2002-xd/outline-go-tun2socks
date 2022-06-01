@@ -88,6 +88,7 @@ func NewUDPHandler(fakedns net.UDPAddr, timeout time.Duration, config *net.Liste
 }
 
 func (h *udpHandler) fetchUDPInput(conn core.UDPConn, t *tracker) {
+
 	buf := core.NewBytes(core.BufSize)
 
 	defer func() {
@@ -98,11 +99,23 @@ func (h *udpHandler) fetchUDPInput(conn core.UDPConn, t *tracker) {
 	for {
 		t.conn.SetDeadline(time.Now().Add(h.timeout))
 		n, addr, err := t.conn.ReadFrom(buf)
+
 		if err != nil {
 			return
 		}
-
 		udpaddr := addr.(*net.UDPAddr)
+		//TODO: If updAddr is a DNS server do not remangle it.
+		if ipt, found := doh.Dmap[addr.String()]; found {
+			if ipt.TTL.Sub(time.Now()) >= 0 {
+				udpaddr.IP = *ipt.ManIp
+			} else {
+				log.Warnf("alg entry expired")
+				udpaddr.IP = *ipt.ManIp
+			}
+		} else {
+			log.Warnf("could not unmangle")
+
+		}
 		t.download += int64(n)
 		_, err = conn.WriteFrom(buf[:n], udpaddr)
 		if err != nil {
@@ -113,6 +126,7 @@ func (h *udpHandler) fetchUDPInput(conn core.UDPConn, t *tracker) {
 }
 
 func (h *udpHandler) Connect(conn core.UDPConn, target *net.UDPAddr) error {
+
 	bindAddr := &net.UDPAddr{IP: nil, Port: 0}
 	pc, err := h.config.ListenPacket(context.TODO(), bindAddr.Network(), bindAddr.String())
 	if err != nil {
@@ -158,7 +172,16 @@ func (h *udpHandler) ReceiveTo(conn core.UDPConn, data []byte, addr *net.UDPAddr
 	if !ok1 {
 		return fmt.Errorf("connection %v->%v does not exists", conn.LocalAddr(), addr)
 	}
-
+	if ipt, found := doh.Nmap[addr.String()]; found {
+		if ipt.TTL.Sub(time.Now()) >= 0 {
+			addr.IP = *ipt.RIp
+		} else {
+			log.Warnf("alg entry expired, dropping conn ____")
+			return fmt.Errorf("no network connection")
+		}
+	} else {
+		log.Warnf("could not unmangle")
+	}
 	// Update deadline.
 	t.conn.SetDeadline(time.Now().Add(h.timeout))
 
